@@ -1,6 +1,6 @@
 from datetime import datetime
 import io
- import os
+import os
 import psycopg2
 
 from deep_translator import GoogleTranslator, MyMemoryTranslator
@@ -29,13 +29,17 @@ except ImportError:
 
 # --- 1. DATABASE SETUP & HELPERS ---
 
-def init_db():)
-    conn = sqlite3.connect("steam_app.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
+
+def init_db():
+    conn = get_db_connection()
     c = conn.cursor()
-    c.execute(
-        """
+    c.execute("""
         CREATE TABLE IF NOT EXISTS translations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             user_role TEXT NOT NULL,
             field TEXT NOT NULL,
             source_text TEXT NOT NULL,
@@ -43,43 +47,44 @@ def init_db():)
             target_language TEXT NOT NULL,
             timestamp TEXT NOT NULL
         )
-        """
-    )
+    """)
     conn.commit()
     conn.close()
-
 
 init_db()
 
-
 def save_to_db(user_role, field, source_text, translated_text, target_language):
-    conn = sqlite3.connect("steam_app.db")
+    conn = get_db_connection()
     c = conn.cursor()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    c.execute(
-        """
-        INSERT INTO translations
+    c.execute("""
+        INSERT INTO translations 
             (user_role, field, source_text, translated_text, target_language, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (user_role, field, source_text, translated_text, target_language, timestamp),
-    )
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (user_role, field, source_text, translated_text, target_language, timestamp))
     conn.commit()
     conn.close()
 
-
 def get_all_records():
-    conn = sqlite3.connect("steam_app.db")
+    conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM translations ORDER BY id DESC")
     rows = c.fetchall()
     conn.close()
     return rows
 
-
 def delete_record(record_id):
-    conn = sqlite3.connect("steam_app.db")
+    conn = get_db_connection()
     c = conn.cursor()
+    c.execute("DELETE FROM translations WHERE id = %s", (record_id,))
+    conn.commit()
+    conn.close()
+
+        
+
+ 
+
+  
      # --- 1. DATABASE SETUP & HELPERS ---
 
 DATABASE_URL = os.getenv("DATABASE_URL")
