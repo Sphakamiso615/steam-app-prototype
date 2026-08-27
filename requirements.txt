@@ -1,0 +1,8 @@
+﻿streamlit
+deep-translator
+pypdf
+python-pptx
+Pillow
+pytesseract
+SpeechRecognition
+gTTS
