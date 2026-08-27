@@ -1,22 +1,10 @@
-streamlit>=1.38
-deep-translator>=1.11.4
-pypdf>=4.0
-python-pptx>=0.6.23
-Pillow>=10.0
+streamlit
+deep-translator
+pypdf
+python-pptx
+Pillow
+pytesseract
+SpeechRecognition
+gTTS
+psycopg2-binary
 
-# For voice input (speech-to-text). Uses the free Google Web Speech API
-# under the hood, so an internet connection is required at recording time.
-# No system dependencies needed - audio is captured in-browser via
-# st.audio_input, which requires streamlit>=1.38 above.
-SpeechRecognition>=3.10
-
-# For audio playback of translations (text-to-speech), via the free
-# Google Text-to-Speech (gTTS) service. Requires an internet connection.
-# Currently only reliably supports English and Afrikaans; see app.py.
-gTTS>=2.5
-
-# Optional, for image (OCR) text extraction. Requires the separate
-# Tesseract OCR engine to also be installed on your computer -
-# see the README for the download link. The app works fine without
-# this; image uploads just won't auto-extract text.
-pytesseract>=0.3.10
