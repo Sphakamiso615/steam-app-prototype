@@ -3,6 +3,7 @@ import io
 import os
 import psycopg2
 
+
 from deep_translator import GoogleTranslator, MyMemoryTranslator
 from pypdf import PdfReader
 from pptx import Presentation
