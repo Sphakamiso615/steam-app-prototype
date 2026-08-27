@@ -27,6 +27,87 @@ try:
     _GTTS_IMPORTED = True
 except ImportError:
     _GTTS_IMPORTED = False
+import streamlit as st
+
+def check_password():
+    """Returns True if password is correct."""
+    
+    def password_entered():
+        if st.session_state["password"] == "Sphak@miso09":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    # Custom CSS for background and styling
+    st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .login-card {
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 2rem;
+        border-radius: 15px;
+        background-color: white;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        text-align: center;
+    }
+    .login-title {
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+    .login-subtitle {
+        color: #666;
+        margin-bottom: 1.5rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    if "password_correct" not in st.session_state:
+        with st.container():
+            st.markdown('<div class="login-card">', unsafe_allow_html=True)
+            
+            # Add your logo here (uncomment one option):
+            
+            # Option 1: Logo from URL
+            # st.image("https://your-logo-url.com/logo.png", width=150)
+            
+            # Option 2: Logo from local file (add logo.png to your repo)
+            # st.image("logo.png", width=150)
+            
+            st.markdown('<h1 class="login-title"> Welcome</h1>', unsafe_allow_html=True)
+            st.markdown('<p class="login-subtitle">Enter password to continue</p>', unsafe_allow_html=True)
+            st.text_input("Password", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter password")
+            st.markdown('</div>', unsafe_allow_html=True)
+        return False
+    
+    elif not st.session_state["password_correct"]:
+        with st.container():
+            st.markdown('<div class="login-card">', unsafe_allow_html=True)
+            
+            # Option 1: Logo from URL
+            # st.image("https://your-logo-url.com/logo.png", width=150)
+            
+            # Option 2: Logo from local file
+            # st.image("logo.png", width=150)
+            
+            st.markdown('<h1 class="login-title"> Welcome</h1>', unsafe_allow_html=True)
+            st.error(" Incorrect password")
+            st.text_input("Password", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter password")
+            st.markdown('</div>', unsafe_allow_html=True)
+        return False
+    
+    else:
+        return True
+
+if not check_password():
+    st.stop()
+
+ 
+
+# --- YOUR APP CODE CONTINUES BELOW ---
 
 # --- 1. DATABASE SETUP & HELPERS ---
 
