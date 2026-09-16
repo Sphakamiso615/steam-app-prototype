@@ -1,9 +1,6 @@
 from datetime import datetime
 import io
-import os
-import psycopg2
-
-
+import sqlite3
 from deep_translator import GoogleTranslator, MyMemoryTranslator
 from pypdf import PdfReader
 from pptx import Presentation
@@ -27,101 +24,16 @@ try:
     _GTTS_IMPORTED = True
 except ImportError:
     _GTTS_IMPORTED = False
-import streamlit as st
-
-def check_password():
-    """Returns True if password is correct."""
-    
-    def password_entered():
-        if st.session_state["password"] == "Sphak@miso09":
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
-    # Custom CSS for background and styling
-    st.markdown("""
-    <style>
-    .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    .login-card {
-        max-width: 400px;
-        margin: 0 auto;
-        padding: 2rem;
-        border-radius: 15px;
-        background-color: white;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        text-align: center;
-    }
-    .login-title {
-        color: #333;
-        margin-bottom: 0.5rem;
-    }
-    .login-subtitle {
-        color: #666;
-        margin-bottom: 1.5rem;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    if "password_correct" not in st.session_state:
-        with st.container():
-            st.markdown('<div class="login-card">', unsafe_allow_html=True)
-            
-            # Add your logo here (uncomment one option):
-            
-            # Option 1: Logo from URL
-            # st.image("https://your-logo-url.com/logo.png", width=150)
-            
-            # Option 2: Logo from local file (add logo.png to your repo)
-            # st.image("logo.png", width=150)
-            
-            st.markdown('<h1 class="login-title"> Welcome</h1>', unsafe_allow_html=True)
-            st.markdown('<p class="login-subtitle">Enter password to continue</p>', unsafe_allow_html=True)
-            st.text_input("Password", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter password")
-            st.markdown('</div>', unsafe_allow_html=True)
-        return False
-    
-    elif not st.session_state["password_correct"]:
-        with st.container():
-            st.markdown('<div class="login-card">', unsafe_allow_html=True)
-            
-            # Option 1: Logo from URL
-            # st.image("https://your-logo-url.com/logo.png", width=150)
-            
-            # Option 2: Logo from local file
-            # st.image("logo.png", width=150)
-            
-            st.markdown('<h1 class="login-title"> Welcome</h1>', unsafe_allow_html=True)
-            st.error(" Incorrect password")
-            st.text_input("Password", type="password", on_change=password_entered, key="password", label_visibility="collapsed", placeholder="Enter password")
-            st.markdown('</div>', unsafe_allow_html=True)
-        return False
-    
-    else:
-        return True
-
-if not check_password():
-    st.stop()
-
- 
-
-# --- YOUR APP CODE CONTINUES BELOW ---
 
 # --- 1. DATABASE SETUP & HELPERS ---
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-def get_db_connection():
-    return psycopg2.connect(DATABASE_URL)
-
 def init_db():
-    conn = get_db_connection()
+    conn = sqlite3.connect("steam_app.db")
     c = conn.cursor()
-    c.execute("""
+    c.execute(
+        """
         CREATE TABLE IF NOT EXISTS translations (
-            id SERIAL PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_role TEXT NOT NULL,
             field TEXT NOT NULL,
             source_text TEXT NOT NULL,
@@ -129,97 +41,44 @@ def init_db():
             target_language TEXT NOT NULL,
             timestamp TEXT NOT NULL
         )
-    """)
+        """
+    )
     conn.commit()
     conn.close()
+
 
 init_db()
 
+
 def save_to_db(user_role, field, source_text, translated_text, target_language):
-    conn = get_db_connection()
+    conn = sqlite3.connect("steam_app.db")
     c = conn.cursor()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    c.execute("""
-        INSERT INTO translations 
+    c.execute(
+        """
+        INSERT INTO translations
             (user_role, field, source_text, translated_text, target_language, timestamp)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (user_role, field, source_text, translated_text, target_language, timestamp))
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (user_role, field, source_text, translated_text, target_language, timestamp),
+    )
     conn.commit()
     conn.close()
 
+
 def get_all_records():
-    conn = get_db_connection()
+    conn = sqlite3.connect("steam_app.db")
     c = conn.cursor()
     c.execute("SELECT * FROM translations ORDER BY id DESC")
     rows = c.fetchall()
     conn.close()
     return rows
 
-def delete_record(record_id):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("DELETE FROM translations WHERE id = %s", (record_id,))
-    conn.commit()
-    conn.close()
-
-        
-
- 
-
-  
-     # --- 1. DATABASE SETUP & HELPERS ---
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-def get_db_connection():
-    return psycopg2.connect(DATABASE_URL)
-
-def init_db():
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS translations (
-            id SERIAL PRIMARY KEY,
-            user_role TEXT NOT NULL,
-            field TEXT NOT NULL,
-            source_text TEXT NOT NULL,
-            translated_text TEXT NOT NULL,
-            target_language TEXT NOT NULL,
-            timestamp TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-init_db()
-
-def save_to_db(user_role, field, source_text, translated_text, target_language):
-    conn = get_db_connection()
-    c = conn.cursor()
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    c.execute("""
-        INSERT INTO translations 
-            (user_role, field, source_text, translated_text, target_language, timestamp)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (user_role, field, source_text, translated_text, target_language, timestamp))
-    conn.commit()
-    conn.close()
-
-def get_all_records():
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM translations ORDER BY id DESC")
-    rows = c.fetchall()
-    conn.close()
-    return rows
 
 def delete_record(record_id):
-    conn = get_db_connection()
+    conn = sqlite3.connect("steam_app.db")
     c = conn.cursor()
-    c.execute("DELETE FROM translations WHERE id = %s", (record_id,))
-    conn.commit()
-    conn.close()
-
+    c.execute("DELETE FROM translations WHERE id = ?", (record_id,))
     conn.commit()
     conn.close()
 
