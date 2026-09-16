@@ -1,11 +1,19 @@
 from datetime import datetime
 import io
-import sqlite3
+from datetime import datetime
+import os
+import psycopg2
 from deep_translator import GoogleTranslator, MyMemoryTranslator
 from pypdf import PdfReader
 from pptx import Presentation
 from PIL import Image
 import streamlit as st
+import time 
+ 
+
+
+ 
+
 
 try:
     import pytesseract
@@ -27,13 +35,17 @@ except ImportError:
 
 # --- 1. DATABASE SETUP & HELPERS ---
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
+
 def init_db():
-    conn = sqlite3.connect("steam_app.db")
+    conn = get_db_connection()
     c = conn.cursor()
-    c.execute(
-        """
+    c.execute("""
         CREATE TABLE IF NOT EXISTS translations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             user_role TEXT NOT NULL,
             field TEXT NOT NULL,
             source_text TEXT NOT NULL,
@@ -41,46 +53,41 @@ def init_db():
             target_language TEXT NOT NULL,
             timestamp TEXT NOT NULL
         )
-        """
-    )
+    """)
     conn.commit()
     conn.close()
-
 
 init_db()
 
-
 def save_to_db(user_role, field, source_text, translated_text, target_language):
-    conn = sqlite3.connect("steam_app.db")
+    conn = get_db_connection()
     c = conn.cursor()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    c.execute(
-        """
-        INSERT INTO translations
+    c.execute("""
+        INSERT INTO translations 
             (user_role, field, source_text, translated_text, target_language, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (user_role, field, source_text, translated_text, target_language, timestamp),
-    )
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (user_role, field, source_text, translated_text, target_language, timestamp))
     conn.commit()
     conn.close()
 
-
 def get_all_records():
-    conn = sqlite3.connect("steam_app.db")
+    conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM translations ORDER BY id DESC")
     rows = c.fetchall()
     conn.close()
     return rows
 
-
 def delete_record(record_id):
-    conn = sqlite3.connect("steam_app.db")
+    conn = get_db_connection()
     c = conn.cursor()
-    c.execute("DELETE FROM translations WHERE id = ?", (record_id,))
+    c.execute("DELETE FROM translations WHERE id = %s", (record_id,))
     conn.commit()
     conn.close()
+
+
+ 
 
 
 # --- FILE TEXT EXTRACTION HELPERS ---
@@ -172,18 +179,25 @@ def _looks_like_error_page(text):
     lowered = text.lower()
     return "<html" in lowered or "server error" in lowered or "error 500" in lowered
 
-
 def _looks_untranslated(original, translated, target_lang_name):
     """
     Detect a translation call that silently echoed the input back instead
-    of translating it - a known failure mode of free translation
-    endpoints when text is too long or the service is having trouble.
-    Not a perfect check (e.g. a single shared proper noun could match),
-    but effective for whole-block comparisons.
+    of translating it.
     """
-    if target_lang_name == "English":
-        return False  # translating into English can legitimately be a no-op
-    return translated.strip().lower() == original.strip().lower()
+    if original.strip().lower() == translated.strip().lower():
+        # If the original looks like English already (all ASCII), it's a
+        # legitimate no-op — don't flag it.
+        if original.isascii():
+            return False
+        # Non-English text returned unchanged = failed translation
+        return True
+    return False
+
+
+
+
+
+ 
 
 
 def _split_into_chunks(text, max_len):
@@ -348,6 +362,9 @@ def perform_translation(text, target_lang_name):
     google_error = None
     google_failed = False
 
+ 
+
+
     for chunk in google_chunks:
         try:
             result = _translate_with_google(chunk, code)
@@ -372,6 +389,9 @@ def perform_translation(text, target_lang_name):
             f"{target_lang_name} yet. Please try again in a moment, or "
             "translate a shorter excerpt."
         )
+    
+    time.sleep(1)  # ← ADD THIS LINE
+
 
     # Retry from scratch with MyMemory, chunked to its much smaller limit.
     mymemory_chunks = _split_into_chunks(text, MYMEMORY_CHUNK_LIMIT)
